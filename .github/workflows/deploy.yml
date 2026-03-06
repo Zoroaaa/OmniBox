@@ -1,0 +1,60 @@
+name: Deploy OmniBox to Cloudflare Workers
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy OmniBox to Production
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm install
+      
+      - name: Validate Configuration
+        run: |
+          echo "Validating configuration..."
+          npx wrangler --version
+      
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+        env:
+          WRANGLER_VERSION: 4
+      
+      - name: Health Check
+        run: |
+          echo "Deployment complete, performing health check..."
+          sleep 20
+          
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Health check attempt $attempt/$max_attempts"
+            if curl -f ${{ secrets.OMNIBOX_HEALTH_URL }}/api/health; then
+              echo "✅ Health check passed"
+              exit 0
+            else
+              echo "❌ Health check failed, retrying in 10 seconds..."
+              sleep 10
+              attempt=$((attempt + 1))
+            fi
+          done
+          
+          echo "❌ All health check attempts failed"
+          exit 1

@@ -1,0 +1,64 @@
+# wrangler.toml - OmniBox Proxy Worker 配置
+name = "omnibox"
+main = "src/worker.js"
+compatibility_date = "2024-12-19"
+compatibility_flags = ["nodejs_compat"]
+preview_urls = false  
+
+# 环境变量配置
+[vars]
+# 调试模式：true(开启详细错误信息)/false(仅显示通用错误)
+DEBUG = "false"
+
+# 日志级别：error/warn/info/debug (数字越小越严格)
+LOG_LEVEL = "warn"
+
+# ==================== 安全配置 ====================
+# 代理访问密码，空字符串表示无需密码
+PROXY_PASSWORD = ""
+
+# 是否显示密码输入页面：true(显示)/false(直接返回403)
+SHOW_PASSWORD_PAGE = "true"
+
+# ==================== 缓存 TTL 配置（单位：秒）====================
+# HTML 内容缓存时间（1小时）
+CACHE_HTML_TTL = "3600"
+
+# CSS 样式表缓存时间（1天）
+CACHE_CSS_TTL = "86400"
+
+# JavaScript 文件缓存时间（1天）
+CACHE_JS_TTL = "86400"
+
+# 图片资源缓存时间（30天）
+CACHE_IMAGE_TTL = "2592000"
+
+# 字体文件缓存时间（30天）
+CACHE_FONT_TTL = "2592000"
+
+# JSON 数据缓存时间（30分钟）
+CACHE_JSON_TTL = "1800"
+
+# 默认缓存时间（1小时）
+CACHE_DEFAULT_TTL = "3600"
+
+# ==================== 性能配置 ====================
+# 单个缓存项最大大小（1MB = 1048576 字节）
+MAX_CACHE_SIZE = "1048576"
+
+# ==================== KV 存储绑定 ====================
+# KV 命名空间用于缓存存储
+# 请在 Cloudflare Dashboard 中创建 KV 命名空间后替换 ID
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_KV_NAMESPACE_ID"
+
+# 监控和可观测性配置
+[observability]
+enabled = true         # 启用 Cloudflare 的监控和日志功能
+
+# ==================== 注意事项 ====================
+# 1. 确保在 Cloudflare Dashboard 中已创建对应的 KV 命名空间
+# 2. 密码等敏感信息建议使用 secrets 管理: wrangler secret put PROXY_PASSWORD
+# 3. 缓存时间可根据实际业务需求调整

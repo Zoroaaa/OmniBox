@@ -1,0 +1,30 @@
+{
+  "name": "omnibox",
+  "version": "1.0.0",
+  "description": "OmniBox - Enhanced Web Proxy Worker for Cloudflare",
+  "main": "src/worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler preview",
+    "test": "echo \"No tests specified\" && exit 0",
+    "lint": "echo \"No linting configured\"",
+    "clean": "rm -rf node_modules package-lock.json",
+    "install:clean": "npm run clean && npm install"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "proxy",
+    "omnibox",
+    "web-proxy",
+    "kv-cache"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.60.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
