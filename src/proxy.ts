@@ -252,22 +252,36 @@ export class ProxyHandler {
     let modifiedResponse: Response;
     let isHTML = false;
 
-    if (response.body && contentType.startsWith('text/')) {
-      let body = await response.text();
-      isHTML = contentType.includes('text/html') && body.includes('<html');
+    const isTextContent = contentType.startsWith('text/');
+    const isPotentialHTML = contentType.includes('html') || 
+                           contentType.includes('javascript') ||
+                           contentType === '' ||
+                           contentType === 'application/octet-stream' ||
+                           contentType.includes('application/x-typescript') ||
+                           contentType.includes('application/typescript');
 
-      if (contentType.includes('html') || contentType.includes('javascript')) {
+    if (response.body && (isTextContent || isPotentialHTML)) {
+      let body = await response.text();
+      
+      const actualContentType = this.detectActualContentType(body, contentType);
+      isHTML = actualContentType.includes('text/html') && body.includes('<html');
+
+      if (actualContentType.includes('html') || actualContentType.includes('javascript')) {
         body = body.replaceAll('window.location', `window.${CONFIG.REPLACE_URL_OBJ}`);
         body = body.replaceAll('document.location', `document.${CONFIG.REPLACE_URL_OBJ}`);
       }
 
       if (isHTML) {
         body = await this.injector.injectHTML(body, actualUrl.href, hasProxyHintCookie);
-      } else {
+      } else if (isTextContent || actualContentType.includes('javascript')) {
         body = this.injector.replaceURLsInText(body);
       }
 
       modifiedResponse = new Response(body, response);
+      
+      if (contentType !== actualContentType && isHTML) {
+        modifiedResponse.headers.set('Content-Type', 'text/html; charset=utf-8');
+      }
     } else {
       modifiedResponse = new Response(response.body, response);
     }
@@ -277,6 +291,33 @@ export class ProxyHandler {
     this.removeRestrictiveHeaders(modifiedResponse, hasProxyHintCookie);
 
     return modifiedResponse;
+  }
+
+  private detectActualContentType(body: string, declaredContentType: string): string {
+    if (declaredContentType.includes('text/html')) {
+      return declaredContentType;
+    }
+
+    const trimmedBody = body.trim();
+    
+    if (trimmedBody.startsWith('<!DOCTYPE') || 
+        trimmedBody.startsWith('<html') || 
+        trimmedBody.startsWith('<HTML') ||
+        (trimmedBody.startsWith('<') && trimmedBody.includes('<head') && trimmedBody.includes('<body'))) {
+      return 'text/html; charset=utf-8';
+    }
+
+    if (trimmedBody.startsWith('<script') || 
+        trimmedBody.includes('function ') ||
+        trimmedBody.includes('const ') ||
+        trimmedBody.includes('let ') ||
+        trimmedBody.includes('var ')) {
+      if (declaredContentType.includes('typescript') || declaredContentType === 'application/octet-stream') {
+        return 'application/javascript; charset=utf-8';
+      }
+    }
+
+    return declaredContentType || 'text/plain';
   }
 
   private processCookies(response: Response, actualUrl: URL, isHTML: boolean, hasProxyHintCookie: boolean): void {
