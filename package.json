@@ -2,13 +2,17 @@
   "name": "omnibox",
   "version": "1.0.0",
   "description": "OmniBox - Enhanced Web Proxy Worker for Cloudflare",
+  "type": "module",
   "main": "src/worker.js",
   "scripts": {
     "dev": "wrangler dev",
+    "build": "wrangler build",
     "deploy": "wrangler deploy",
     "preview": "wrangler preview",
     "test": "echo \"No tests specified\" && exit 0",
-    "lint": "echo \"No linting configured\"",
+    "lint": "npx eslint src/**/*.js",
+    "typecheck": "npx tsc",
+    "typecheck:verbose": "npx tsc --verbose",
     "clean": "rm -rf node_modules package-lock.json",
     "install:clean": "npm run clean && npm install"
   },
@@ -22,6 +26,9 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "eslint": "^10.0.2",
+    "jiti": "^2.6.1",
+    "typescript": "^5.9.3",
     "wrangler": "^4.60.0"
   },
   "engines": {

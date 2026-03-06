@@ -54,7 +54,7 @@ export class ProxyHandler {
 
     // Validate and normalize URL
     const actualUrl = this.validateAndNormalizeUrl(actualUrlStr, siteCookie);
-    if (typeof actualUrl === 'object' && actualUrl.redirect) {
+    if (typeof actualUrl === 'object' && 'redirect' in actualUrl) {
       return actualUrl.response;
     }
 

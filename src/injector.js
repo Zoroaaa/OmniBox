@@ -15,7 +15,7 @@ export class ContentInjector {
    * @param {string} body - HTML body content
    * @param {string} actualUrl - Actual URL being proxied
    * @param {boolean} hasProxyHintCookie - Whether proxy hint cookie exists
-   * @returns {string} Modified HTML content
+   * @returns {Promise<string>} Modified HTML content
    */
   async injectHTML(body, actualUrl, hasProxyHintCookie) {
     try {
@@ -98,30 +98,133 @@ export class ContentInjector {
    */
   generateProxyHintScript() {
     return `
-function toEntities(str) {
-  return str.split("").map(ch => \`&#\${ch.charCodeAt(0)};\`).join("");
-}
-
-// OmniBox proxy warning hint injection
-setTimeout(() => {
-  var hint = \`Warning: You are currently using OmniBox web proxy, so do not log in to any website. Click to close this hint.
-警告：您当前正在使用 OmniBox 网络代理，请勿登录任何网站。点击关闭此提示。\`;
-
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    document.body.insertAdjacentHTML(
-      'afterbegin', 
-      \`<div style="position:fixed;left:0px;top:0px;width:100%;margin:0px;padding:0px;display:block;z-index:99999999999999999999999;user-select:none;cursor:pointer;" id="__OMNIBOX_HINT_DIV__" onclick="document.getElementById('__OMNIBOX_HINT_DIV__').remove();">
-        <span style="position:relative;display:block;width:calc(100% - 20px);min-height:30px;font-size:14px;color:yellow;background:rgb(180,0,0);text-align:center;border-radius:5px;padding-left:10px;padding-right:10px;padding-top:1px;padding-bottom:1px;">
-          \${toEntities(hint)}
-          <br>
-          <a href="https://github.com/your-repo/omnibox" style="color:rgb(250,250,180);">OmniBox Proxy Worker</a>
-        </span>
-      </div>\`
-    );
-  } else {
-    alert(hint + " OmniBox Proxy Worker");
+(function() {
+  var hintDismissed = false;
+  
+  function createHint() {
+    if (hintDismissed || document.getElementById('__omnibox_hint__')) return;
+    
+    var hintContainer = document.createElement('div');
+    hintContainer.id = '__omnibox_hint__';
+    hintContainer.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'right: 0',
+      'z-index: 2147483647',
+      'display: flex',
+      'justify-content: center',
+      'padding: 12px 16px',
+      'pointer-events: none',
+      'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      'animation: omniboxSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+    ].join(';');
+    
+    var hintCard = document.createElement('div');
+    hintCard.style.cssText = [
+      'display: flex',
+      'align-items: center',
+      'gap: 12px',
+      'background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%)',
+      'backdrop-filter: blur(12px)',
+      'padding: 14px 20px',
+      'border-radius: 12px',
+      'box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+      'pointer-events: auto',
+      'max-width: 600px',
+      'width: 100%'
+    ].join(';');
+    
+    var iconSpan = document.createElement('span');
+    iconSpan.style.cssText = 'font-size: 1.25rem; flex-shrink: 0;';
+    iconSpan.textContent = '🛡️';
+    
+    var contentDiv = document.createElement('div');
+    contentDiv.style.cssText = 'flex: 1; min-width: 0;';
+    
+    var titleDiv = document.createElement('div');
+    titleDiv.style.cssText = 'color: #fff; font-weight: 600; font-size: 0.95rem; margin-bottom: 2px;';
+    titleDiv.textContent = 'OmniBox 代理提示';
+    
+    var messageDiv = document.createElement('div');
+    messageDiv.style.cssText = 'color: rgba(255, 255, 255, 0.85); font-size: 0.85rem; line-height: 1.4;';
+    messageDiv.textContent = '您正在使用代理服务，请勿登录重要账户或输入敏感信息';
+    
+    contentDiv.appendChild(titleDiv);
+    contentDiv.appendChild(messageDiv);
+    
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = [
+      'background: rgba(255, 255, 255, 0.15)',
+      'border: 1px solid rgba(255, 255, 255, 0.2)',
+      'border-radius: 8px',
+      'color: #fff',
+      'padding: 8px 16px',
+      'font-size: 0.85rem',
+      'font-weight: 500',
+      'cursor: pointer',
+      'transition: all 0.2s ease',
+      'white-space: nowrap',
+      'flex-shrink: 0'
+    ].join(';');
+    closeBtn.textContent = '我知道了';
+    closeBtn.onmouseover = function() {
+      this.style.background = 'rgba(255, 255, 255, 0.25)';
+    };
+    closeBtn.onmouseout = function() {
+      this.style.background = 'rgba(255, 255, 255, 0.15)';
+    };
+    closeBtn.onclick = function(e) {
+      e.stopPropagation();
+      hintDismissed = true;
+      hintContainer.style.animation = 'omniboxSlideOut 0.3s ease forwards';
+      setTimeout(function() {
+        if (hintContainer.parentNode) {
+          hintContainer.parentNode.removeChild(hintContainer);
+        }
+      }, 300);
+    };
+    
+    hintCard.appendChild(iconSpan);
+    hintCard.appendChild(contentDiv);
+    hintCard.appendChild(closeBtn);
+    hintContainer.appendChild(hintCard);
+    
+    document.body.appendChild(hintContainer);
   }
-}, ${CONFIG.PROXY_HINT_DELAY});
+  
+  function addStyles() {
+    if (document.getElementById('__omnibox_hint_styles__')) return;
+    
+    var style = document.createElement('style');
+    style.id = '__omnibox_hint_styles__';
+    style.textContent = [
+      '@keyframes omniboxSlideIn {',
+      '  from { opacity: 0; transform: translateY(-20px); }',
+      '  to { opacity: 1; transform: translateY(0); }',
+      '}',
+      '@keyframes omniboxSlideOut {',
+      '  from { opacity: 1; transform: translateY(0); }',
+      '  to { opacity: 0; transform: translateY(-20px); }',
+      '}'
+    ].join('\\n');
+    document.head.appendChild(style);
+  }
+  
+  function init() {
+    addStyles();
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(createHint, 500);
+      });
+    } else {
+      setTimeout(createHint, 500);
+    }
+  }
+  
+  init();
+})();
 `;
   }
 

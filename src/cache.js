@@ -80,7 +80,7 @@ export class CacheManager {
   /**
    * Get cached response
    * @param {string} cacheKey - Cache key
-   * @returns {Object|null} Cached response data
+   * @returns {Promise<Object|null>} Cached response data
    */
   async get(cacheKey) {
     if (!this.kv) {

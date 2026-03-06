@@ -41,14 +41,19 @@
 | 🔄 **URL 重写** | 自动重写页面中的所有 URL，确保代理后的链接正常工作 |
 | 🔐 **密码保护** | 可选的密码保护功能，支持自定义密码输入页面 |
 | 📊 **健康监控** | 内置健康检查 API 和状态监控端点 |
+| 🎨 **现代化前端** | 深色主题设计，响应式布局，流畅的动画效果 |
+| 🇨🇳 **全中文界面** | 完整的中文界面，提升用户体验 |
+| 💬 **优化的提示系统** | 美观的代理提示组件，点击关闭后不再显示 |
 
 ### 技术亮点
 
-- **零依赖** - 纯 JavaScript 实现，无需外部依赖
+- **零依赖** - 纯 JavaScript 实现，核心功能无需外部依赖
 - **模块化设计** - 清晰的代码架构，易于维护和扩展
 - **CORS 支持** - 完整的跨域资源共享支持
 - **性能优化** - 智能缓存策略，减少源站请求
 - **安全防护** - 爬虫过滤、内容过滤、速率限制
+- **代码质量** - 集成 ESLint 和 TypeScript 类型检查
+- **现代化前端** - 响应式设计，流畅的用户体验
 
 ---
 
@@ -122,7 +127,14 @@ npx wrangler kv:namespace create KV_CACHE
 # 6. 本地开发
 npm run dev
 
-# 7. 部署到生产环境
+# 7. 代码质量检查
+npm run lint
+npm run typecheck
+
+# 8. 构建测试
+npm run build
+
+# 9. 部署到生产环境
 npm run deploy
 ```
 
@@ -147,7 +159,7 @@ https://your-worker.workers.dev/https://github.com
 |--------|------|--------|------|
 | `DEBUG` | boolean | `false` | 启用调试模式，显示详细错误信息 |
 | `LOG_LEVEL` | string | `warn` | 日志级别：`error` / `warn` / `info` / `debug` |
-| `PROXY_PASSWORD` | string | `""` | 访问密码，为空则无需密码 |
+| `PROXY_PASSWORD` | Secret | - | 访问密码（仅通过 Cloudflare Dashboard 添加 Secret） |
 | `SHOW_PASSWORD_PAGE` | boolean | `true` | 是否显示密码输入页面 |
 | `MAX_CACHE_SIZE` | number | `1048576` | 单个缓存项最大大小（字节） |
 
@@ -173,7 +185,6 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 DEBUG = "false"
 LOG_LEVEL = "warn"
-PROXY_PASSWORD = ""
 MAX_CACHE_SIZE = "1048576"
 
 [[kv_namespaces]]
@@ -265,17 +276,21 @@ Content-Type: application/json
 |-------------|------|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API 令牌 |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID |
-| `OMNIBOX_HEALTH_URL` | Worker 健康检查 URL |
 
 ### 手动部署
 
 ```bash
-# 设置密码（推荐使用 Secrets）
-npx wrangler secret put PROXY_PASSWORD
-
 # 部署
 npm run deploy
 ```
+
+### 配置访问密码
+
+1. 进入 Cloudflare Dashboard → Workers & Pages → omnibox
+2. Settings → Variables and Secrets
+3. 添加 Secret 类型变量：
+   - 名称：`PROXY_PASSWORD`
+   - 值：你的密码
 
 ### 自定义域名
 
@@ -307,8 +322,10 @@ omnibox/
 │   ├── injector.js             # 内容注入
 │   ├── templates.js            # 页面模板
 │   └── utils.js                # 工具函数
+├── .eslintrc.js               # ESLint 配置
 ├── .gitignore
 ├── package.json
+├── tsconfig.json              # TypeScript 配置
 ├── wrangler.toml               # Worker 配置
 └── README.md
 ```
@@ -320,6 +337,19 @@ omnibox/
 npm run dev
 
 # 访问 http://127.0.0.1:8787
+```
+
+### 代码质量检查
+
+```bash
+# 语法检查
+npm run lint
+
+# 类型检查
+npm run typecheck
+
+# 构建测试
+npm run build
 ```
 
 ### 调试模式
@@ -348,7 +378,7 @@ LOG_LEVEL = "debug"
 ### 安全建议
 
 1. **启用密码保护** - 生产环境建议设置访问密码
-2. **使用 Secrets** - 敏感信息通过 Cloudflare Secrets 管理
+2. **使用 Secrets** - 密码等敏感信息仅通过 Cloudflare Dashboard 添加 Secret
 3. **定期更新** - 保持依赖和 Worker 运行时最新
 4. **监控日志** - 启用 Cloudflare 日志监控异常访问
 
