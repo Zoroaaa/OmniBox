@@ -644,6 +644,23 @@ body {
   .proxy-form {
     padding: 20px;
   }
+  
+  .usage-example {
+    font-size: 0.8rem;
+    padding: 12px 16px;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+  
+  .form-input {
+    font-size: 0.9rem;
+    padding: 14px 16px;
+  }
+  
+  .form-input::placeholder {
+    font-size: 0.85rem;
+  }
 }
 `;
 
