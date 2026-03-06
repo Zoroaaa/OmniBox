@@ -16,15 +16,10 @@ export interface CorsHeaders {
 
 export function getUnrestrictedCorsHeaders(): CorsHeaders {
   return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': '*',
-    'Access-Control-Allow-Headers': '*',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Max-Age': CONFIG.CORS_MAX_AGE.toString(),
-    'Access-Control-Expose-Headers': '*',
+    ...CONFIG.HEADERS.CORS_HEADERS,
     'X-OmniBox-Proxy-Version': CONFIG.VERSION,
     ...CONFIG.HEADERS.ADD_HEADERS
-  };
+  } as CorsHeaders;
 }
 
 export function getCookie(cookieName: string, cookies: string | null): string {
@@ -58,12 +53,15 @@ export function getHTMLResponse(
   });
 }
 
-export function getRedirect(url: string, status: 301 | 302 | 303 | 307 | 308 = 302): Response {
-  return Response.redirect(url, status);
-}
-
 export function generateRequestId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+export function createJsonHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    ...getUnrestrictedCorsHeaders()
+  };
 }
 
 export interface LogContext {
@@ -85,9 +83,10 @@ export interface LogEntry {
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
+const LOG_LEVELS: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
+
 export class Logger {
   private level: LogLevel;
-  private levels: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
   private module: string;
   private requestId: string | null;
   private version: string;
@@ -108,7 +107,7 @@ export class Logger {
   }
 
   private shouldLog(level: LogLevel): boolean {
-    return this.levels[level] <= this.levels[this.level];
+    return LOG_LEVELS[level] <= LOG_LEVELS[this.level];
   }
 
   private formatEntry(level: LogLevel, message: string, context?: LogContext): LogEntry {
@@ -172,12 +171,6 @@ export class Logger {
       this.debug(`${fullLabel}: ${duration}ms`);
       return duration;
     };
-  }
-
-  withContext(_additionalContext: LogContext): Logger {
-    const childLogger = new Logger(this.module, { LOG_LEVEL: this.level });
-    childLogger.requestId = this.requestId;
-    return childLogger;
   }
 
   static create(module: string, env: EnvVariables = {}): Logger {

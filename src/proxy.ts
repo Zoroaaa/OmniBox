@@ -4,12 +4,25 @@
 import { CONFIG, type EnvVariables } from './config.js';
 import { ContentInjector } from './injector.js';
 import { getMainPageTemplate, getPasswordPageTemplate, getErrorPageTemplate } from './templates.js';
-import { getCookie, getHTMLResponse, getRedirect, getUnrestrictedCorsHeaders } from './utils.js';
+import { getCookie, getHTMLResponse, getUnrestrictedCorsHeaders } from './utils.js';
 import { CacheManager } from './cache.js';
 
 export interface RedirectResult {
   redirect: true;
   response: Response;
+}
+
+function replaceProxyUrls(value: string, actualUrl: URL): string {
+  const proxyHttps = (globalThis as any).thisProxyServerUrlHttps;
+  const proxyHost = (globalThis as any).thisProxyServerUrl_hostOnly;
+
+  if (!proxyHttps || !proxyHost) return value;
+
+  return value
+    .replaceAll(`${proxyHttps}http`, 'http')
+    .replaceAll(proxyHttps, `${actualUrl.protocol}//${actualUrl.hostname}/`)
+    .replaceAll(proxyHttps.slice(0, -1), `${actualUrl.protocol}//${actualUrl.hostname}`)
+    .replaceAll(proxyHost, actualUrl.host);
 }
 
 export class ProxyHandler {
@@ -41,7 +54,7 @@ export class ProxyHandler {
     const url = new URL(request.url);
 
     if (request.url.endsWith('favicon.ico')) {
-      return getRedirect('https://www.baidu.com/favicon.ico');
+      return Response.redirect('https://www.baidu.com/favicon.ico', 302);
     }
 
     if (request.url.endsWith('robots.txt')) {
@@ -144,7 +157,7 @@ export class ProxyHandler {
         if (lastVisit) {
           return {
             redirect: true,
-            response: getRedirect(`${(globalThis as any).thisProxyServerUrlHttps}${lastVisit}/${actualUrlStr}`)
+            response: Response.redirect(`${(globalThis as any).thisProxyServerUrlHttps}${lastVisit}/${actualUrlStr}`, 302)
           };
         }
       }
@@ -157,7 +170,7 @@ export class ProxyHandler {
     if (!actualUrlStr.startsWith('http') && !actualUrlStr.includes('://')) {
       return {
         redirect: true,
-        response: getRedirect(`${(globalThis as any).thisProxyServerUrlHttps}https://${actualUrlStr}`)
+        response: Response.redirect(`${(globalThis as any).thisProxyServerUrlHttps}https://${actualUrlStr}`, 302)
       };
     }
 
@@ -166,7 +179,7 @@ export class ProxyHandler {
     if (actualUrlStr !== actualUrl.href) {
       return {
         redirect: true,
-        response: getRedirect(`${(globalThis as any).thisProxyServerUrlHttps}${actualUrl.href}`)
+        response: Response.redirect(`${(globalThis as any).thisProxyServerUrlHttps}${actualUrl.href}`, 302)
       };
     }
 
@@ -190,7 +203,7 @@ export class ProxyHandler {
     if (response.status.toString().startsWith('3') && response.headers.get('Location')) {
       try {
         const redirectUrl = new URL(response.headers.get('Location')!, actualUrl.href).href;
-        return getRedirect(`${(globalThis as any).thisProxyServerUrlHttps}${redirectUrl}`);
+        return Response.redirect(`${(globalThis as any).thisProxyServerUrlHttps}${redirectUrl}`, 302);
       } catch {
         return getHTMLResponse(
           getErrorPageTemplate('重定向错误', `无法处理重定向: ${response.headers.get('Location')}`, 500)
@@ -205,25 +218,7 @@ export class ProxyHandler {
     const modifiedHeaders = new Headers();
 
     headers.forEach((value, key) => {
-      let newValue = value;
-
-      newValue = newValue.replaceAll(
-        `${(globalThis as any).thisProxyServerUrlHttps}http`,
-        'http'
-      );
-      newValue = newValue.replaceAll(
-        (globalThis as any).thisProxyServerUrlHttps,
-        `${actualUrl.protocol}//${actualUrl.hostname}/`
-      );
-      newValue = newValue.replaceAll(
-        (globalThis as any).thisProxyServerUrlHttps.slice(0, -1),
-        `${actualUrl.protocol}//${actualUrl.hostname}`
-      );
-      newValue = newValue.replaceAll(
-        (globalThis as any).thisProxyServerUrl_hostOnly,
-        actualUrl.host
-      );
-
+      const newValue = replaceProxyUrls(value, actualUrl);
       modifiedHeaders.set(key, newValue);
     });
 
@@ -346,16 +341,8 @@ export class ProxyHandler {
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('X-Frame-Options', 'ALLOWALL');
 
-    const restrictiveHeaders = [
-      'Content-Security-Policy',
-      'Permissions-Policy',
-      'Cross-Origin-Embedder-Policy',
-      'Cross-Origin-Resource-Policy'
-    ];
-
-    restrictiveHeaders.forEach(header => {
+    CONFIG.HEADERS.REMOVE_HEADERS.forEach(header => {
       headers.delete(header);
-      headers.delete(header + '-Report-Only');
     });
 
     if (!hasProxyHintCookie) {

@@ -4,7 +4,7 @@
 import { ProxyHandler } from './proxy.js';
 import { CacheManager } from './cache.js';
 import { CONFIG, type EnvVariables } from './config.js';
-import { getUnrestrictedCorsHeaders, generateRequestId, Logger, getHTMLResponse } from './utils.js';
+import { getUnrestrictedCorsHeaders, generateRequestId, Logger, getHTMLResponse, createJsonHeaders } from './utils.js';
 import { getErrorPageTemplate } from './templates.js';
 
 declare global {
@@ -48,6 +48,14 @@ interface CacheClearResponse {
   error?: string;
 }
 
+function getCacheKey(cacheManager: CacheManager, request: Request): string {
+  return cacheManager.generateCacheKey(
+    request.url,
+    request.method,
+    Object.fromEntries(request.headers.entries())
+  );
+}
+
 async function handleRequest(request: Request, env: EnvVariables): Promise<Response> {
   const logger = Logger.create('Worker', env);
   const requestId = generateRequestId();
@@ -74,11 +82,7 @@ async function handleRequest(request: Request, env: EnvVariables): Promise<Respo
   }
 
   if (request.method === 'GET' && cacheManager) {
-    const cacheKey = cacheManager.generateCacheKey(
-      request.url,
-      request.method,
-      Object.fromEntries(request.headers.entries())
-    );
+    const cacheKey = getCacheKey(cacheManager, request);
 
     const cached = await cacheManager.get(cacheKey);
     if (cached) {
@@ -115,11 +119,7 @@ async function handleRequest(request: Request, env: EnvVariables): Promise<Respo
   if (request.method === 'GET' && cacheManager &&
       originalResponse.status >= 200 && originalResponse.status < 300) {
     const responseForCache = finalResponse.clone();
-    const cacheKey = cacheManager.generateCacheKey(
-      request.url,
-      request.method,
-      Object.fromEntries(request.headers.entries())
-    );
+    const cacheKey = getCacheKey(cacheManager, request);
 
     cacheManager.set(cacheKey, responseForCache).catch(err => {
       logger.error('Failed to cache response', { cacheKey, error: String(err) });
@@ -135,10 +135,7 @@ async function handleApiRequest(
   env: EnvVariables,
   cacheManager: CacheManager | null
 ): Promise<Response> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...getUnrestrictedCorsHeaders()
-  };
+  const headers = createJsonHeaders();
 
   if (url.pathname === '/api/health') {
     const healthResponse: HealthCheckResponse = {
@@ -209,7 +206,7 @@ async function handleApiRequest(
   }
 
   if (url.pathname === '/api/cache/preload' && request.method === 'POST') {
-    return handlePreloadRequest(cacheManager, env);
+    return handlePreloadRequest(cacheManager);
   }
 
   const notFoundResponse = {
@@ -221,11 +218,8 @@ async function handleApiRequest(
   });
 }
 
-async function handlePreloadRequest(cacheManager: CacheManager | null, _env: EnvVariables): Promise<Response> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...getUnrestrictedCorsHeaders()
-  };
+async function handlePreloadRequest(cacheManager: CacheManager | null): Promise<Response> {
+  const headers = createJsonHeaders();
 
   if (!cacheManager) {
     return new Response(JSON.stringify({ error: 'Cache not configured' }), {

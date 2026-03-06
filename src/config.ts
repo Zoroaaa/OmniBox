@@ -25,41 +25,6 @@ export interface HeadersConfig {
   CORS_HEADERS: Record<string, string>;
 }
 
-export interface ContentTypesConfig {
-  HTML: string[];
-  CSS: string[];
-  JS: string[];
-  JSON: string[];
-  XML: string[];
-  IMAGES: string[];
-  FONTS: string[];
-}
-
-export interface ErrorMessagesConfig {
-  INVALID_URL: string;
-  ACCESS_DENIED: string;
-  PROXY_ERROR: string;
-  CACHE_ERROR: string;
-  NETWORK_ERROR: string;
-}
-
-export interface LoggingConfig {
-  LEVELS: {
-    ERROR: number;
-    WARN: number;
-    INFO: number;
-    DEBUG: number;
-  };
-  DEFAULT_LEVEL: number;
-}
-
-export interface APIConfig {
-  HEALTH_CHECK: string;
-  STATUS: string;
-  CACHE_CLEAR: string;
-  CACHE_PRELOAD: string;
-}
-
 export interface AppConfig {
   VERSION: string;
   NAME: string;
@@ -76,14 +41,10 @@ export interface AppConfig {
   PROXY_HINT_DELAY: number;
   DEBUG_MODE: string;
   CORS_MAX_AGE: number;
-  CONTENT_TYPES: ContentTypesConfig;
-  ERROR_MESSAGES: ErrorMessagesConfig;
   ROBOTS_TXT: string;
   CRAWLER_BLOCK_MESSAGE: string;
   PERFORMANCE: PerformanceConfig;
   HEADERS: HeadersConfig;
-  API: APIConfig;
-  LOGGING: LoggingConfig;
 }
 
 export interface EnvVariables {
@@ -135,24 +96,6 @@ export const CONFIG: AppConfig = {
 
   CORS_MAX_AGE: 86400,
 
-  CONTENT_TYPES: {
-    HTML: ['text/html', 'application/xhtml+xml'],
-    CSS: ['text/css'],
-    JS: ['application/javascript', 'application/x-javascript', 'text/javascript'],
-    JSON: ['application/json', 'text/json'],
-    XML: ['application/xml', 'text/xml'],
-    IMAGES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
-    FONTS: ['font/woff', 'font/woff2', 'font/ttf', 'font/otf', 'application/font-woff']
-  },
-
-  ERROR_MESSAGES: {
-    INVALID_URL: 'Invalid URL format. Please enter a valid website address.',
-    ACCESS_DENIED: 'Access denied. Please check your credentials.',
-    PROXY_ERROR: 'Proxy service error. Please try again later.',
-    CACHE_ERROR: 'Cache service error.',
-    NETWORK_ERROR: 'Network connection error. Please check your internet connection.'
-  },
-
   ROBOTS_TXT: `User-Agent: *
 Disallow: /
 Crawl-delay: 10
@@ -203,22 +146,5 @@ Crawl-delay: 10
       'Access-Control-Max-Age': '86400',
       'Access-Control-Expose-Headers': '*'
     }
-  },
-
-  API: {
-    HEALTH_CHECK: '/api/health',
-    STATUS: '/api/status',
-    CACHE_CLEAR: '/api/cache/clear',
-    CACHE_PRELOAD: '/api/cache/preload'
-  },
-
-  LOGGING: {
-    LEVELS: {
-      ERROR: 0,
-      WARN: 1,
-      INFO: 2,
-      DEBUG: 3
-    },
-    DEFAULT_LEVEL: 1
   }
 };

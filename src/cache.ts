@@ -44,6 +44,13 @@ export class CacheManager {
     };
   }
 
+  private ensureKv(): KVNamespace | null {
+    if (!this.kv) {
+      this.logger.warn('KV storage not available');
+    }
+    return this.kv;
+  }
+
   generateCacheKey(url: string, method: string = 'GET', headers: Record<string, string> = {}): string {
     try {
       const normalizedUrl = new URL(url);
@@ -91,17 +98,15 @@ export class CacheManager {
   }
 
   async get(cacheKey: string): Promise<CacheData | null> {
-    if (!this.kv) {
-      this.logger.warn('KV storage not available');
-      return null;
-    }
+    const kv = this.ensureKv();
+    if (!kv) return null;
 
     try {
-      const cached = await this.kv.get(cacheKey, 'json') as CacheData | null;
+      const cached = await kv.get(cacheKey, 'json') as CacheData | null;
       if (!cached) return null;
 
       if (cached.expires && Date.now() > cached.expires) {
-        this.kv.delete(cacheKey).catch(err => {
+        kv.delete(cacheKey).catch(err => {
           this.logger.error('Failed to delete expired cache', { cacheKey, error: String(err) });
         });
         return null;
@@ -109,7 +114,7 @@ export class CacheManager {
 
       if (!cached.body || !cached.headers) {
         this.logger.warn('Invalid cache structure, deleting', { cacheKey });
-        this.kv.delete(cacheKey).catch(() => {});
+        kv.delete(cacheKey).catch(() => {});
         return null;
       }
 
@@ -130,40 +135,32 @@ export class CacheManager {
   }
 
   async set(cacheKey: string, response: Response, customTTL: number | null = null): Promise<void> {
-    if (!this.kv) {
-      this.logger.warn('KV storage not available');
-      return;
-    }
+    const kv = this.ensureKv();
+    if (!kv) return;
 
     try {
-      const contentType = response.headers.get('content-type') || '';
-      const ttl = customTTL || this.getTTLForContentType(contentType);
-
       if (response.status < 200 || response.status >= 300) {
         return;
       }
 
-      const contentLength = response.headers.get('content-length');
       const maxSize = parseInt(this.env.MAX_CACHE_SIZE || String(CONFIG.MAX_CACHE_SIZE), 10);
-
-      if (contentLength && parseInt(contentLength, 10) > maxSize) {
-        this.logger.warn('Response too large to cache', { contentLength, maxSize });
-        return;
-      }
-
       const cacheControl = response.headers.get('cache-control') || '';
+
       if (cacheControl.includes('private') || cacheControl.includes('no-store')) {
         return;
       }
 
       const responseClone = response.clone();
       const body = await responseClone.text();
-
       const bodySize = new TextEncoder().encode(body).length;
+
       if (bodySize > maxSize) {
         this.logger.warn('Response body too large to cache', { bodySize, maxSize });
         return;
       }
+
+      const contentType = response.headers.get('content-type') || '';
+      const ttl = customTTL || this.getTTLForContentType(contentType);
 
       const cacheData: CacheData = {
         body: body,
@@ -176,7 +173,7 @@ export class CacheManager {
         size: bodySize
       };
 
-      await this.kv.put(cacheKey, JSON.stringify(cacheData), {
+      await kv.put(cacheKey, JSON.stringify(cacheData), {
         expirationTtl: ttl
       });
 
@@ -188,17 +185,15 @@ export class CacheManager {
   }
 
   async clearPattern(pattern: string): Promise<void> {
-    if (!this.kv) {
-      this.logger.warn('KV storage not available');
-      return;
-    }
+    const kv = this.ensureKv();
+    if (!kv) return;
 
     try {
       this.logger.info('Clearing cache pattern', { pattern });
 
-      const list = await this.kv.list({ prefix: pattern });
+      const list = await kv.list({ prefix: pattern });
       const deletePromises = list.keys.map(key =>
-        this.kv!.delete(key.name).catch(err => {
+        kv.delete(key.name).catch(err => {
           this.logger.error('Failed to delete cache key', { key: key.name, error: String(err) });
         })
       );
@@ -217,7 +212,9 @@ export class CacheManager {
   }
 
   async getStats(): Promise<CacheStats> {
-    if (!this.kv) {
+    const kv = this.ensureKv();
+
+    if (!kv) {
       return {
         error: 'KV storage not available',
         totalKeys: 0,
@@ -228,7 +225,7 @@ export class CacheManager {
     }
 
     try {
-      const list = await this.kv.list({ prefix: CONFIG.CACHE_PREFIX });
+      const list = await kv.list({ prefix: CONFIG.CACHE_PREFIX });
 
       const stats: CacheStats = {
         totalKeys: list.keys.length,
@@ -252,9 +249,10 @@ export class CacheManager {
   }
 
   async preloadUrls(urls: string[]): Promise<void> {
-    if (!Array.isArray(urls) || !this.kv) {
-      return;
-    }
+    if (!Array.isArray(urls)) return;
+
+    const kv = this.ensureKv();
+    if (!kv) return;
 
     this.logger.info('Preloading URLs into cache', { count: urls.length });
 
