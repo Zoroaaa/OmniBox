@@ -253,7 +253,7 @@ export class ProxyHandler {
     let isHTML = false;
 
     const isTextContent = contentType.startsWith('text/');
-    const isPotentialHTML = contentType.includes('html') || 
+    const isPotentialHTML = contentType.includes('html') ||
                            contentType.includes('javascript') ||
                            contentType === '' ||
                            contentType === 'application/octet-stream' ||
@@ -262,7 +262,7 @@ export class ProxyHandler {
 
     if (response.body && (isTextContent || isPotentialHTML)) {
       let body = await response.text();
-      
+
       const actualContentType = this.detectActualContentType(body, contentType);
       isHTML = actualContentType.includes('text/html') && body.includes('<html');
 
@@ -278,7 +278,7 @@ export class ProxyHandler {
       }
 
       modifiedResponse = new Response(body, response);
-      
+
       if (contentType !== actualContentType && isHTML) {
         modifiedResponse.headers.set('Content-Type', 'text/html; charset=utf-8');
       }
@@ -299,15 +299,15 @@ export class ProxyHandler {
     }
 
     const trimmedBody = body.trim();
-    
-    if (trimmedBody.startsWith('<!DOCTYPE') || 
-        trimmedBody.startsWith('<html') || 
+
+    if (trimmedBody.startsWith('<!DOCTYPE') ||
+        trimmedBody.startsWith('<html') ||
         trimmedBody.startsWith('<HTML') ||
         (trimmedBody.startsWith('<') && trimmedBody.includes('<head') && trimmedBody.includes('<body'))) {
       return 'text/html; charset=utf-8';
     }
 
-    if (trimmedBody.startsWith('<script') || 
+    if (trimmedBody.startsWith('<script') ||
         trimmedBody.includes('function ') ||
         trimmedBody.includes('const ') ||
         trimmedBody.includes('let ') ||
