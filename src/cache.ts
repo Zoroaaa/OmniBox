@@ -206,11 +206,16 @@ export class CacheManager {
 
       const ttl = customTTL || this.getTTLForContentType(contentType);
 
-      // 存储前去掉 Content-Encoding 和 Content-Length：
-      // body 已用 .text() 解码为明文，恢复时不应再带编码信息
+      // 存储前去掉不应缓存的响应头：
+      // - Content-Encoding/Content-Length: body 已用 .text() 解码为明文，恢复时不应再带编码信息
+      // - Set-Cookie: 会话Cookie绝不能缓存，否则会导致会话劫持（用户A的Cookie泄露给用户B）
       const headersToStore = Object.fromEntries(response.headers.entries());
       delete headersToStore['content-encoding'];
+      delete headersToStore['Content-Encoding'];
       delete headersToStore['content-length'];
+      delete headersToStore['Content-Length'];
+      delete headersToStore['set-cookie'];
+      delete headersToStore['Set-Cookie'];
 
       const cacheData: CacheData = {
         body: body,

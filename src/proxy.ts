@@ -154,6 +154,57 @@ export class ProxyHandler {
            url.includes('%26');
   }
 
+  /**
+   * 检测是否为内网/私有 IP 地址，防止 SSRF 攻击。
+   * 覆盖范围：
+   * - IPv4 私有地址：10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+   * - IPv4 本地回环：127.0.0.0/8
+   * - IPv4 链路本地：169.254.0.0/16
+   * - IPv6 本地回环：::1
+   * - IPv6 链路本地：fe80::/10
+   * - IPv6 唯一本地：fc00::/7
+   * - 特殊地址：0.0.0.0, localhost
+   */
+  private isPrivateIP(hostname: string): boolean {
+    const lower = hostname.toLowerCase();
+
+    if (lower === 'localhost' || lower === '0.0.0.0' || lower === '[::1]' || lower === '::1') {
+      return true;
+    }
+
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const match = hostname.match(ipv4Regex);
+    if (match) {
+      const octets = [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10), parseInt(match[4], 10)];
+
+      if (octets.some(o => o > 255)) return false;
+
+      if (octets[0] === 10) return true;
+      if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
+      if (octets[0] === 192 && octets[1] === 168) return true;
+      if (octets[0] === 127) return true;
+      if (octets[0] === 169 && octets[1] === 254) return true;
+      if (octets[0] === 0) return true;
+      if (octets[0] >= 224 && octets[0] <= 239) return true;
+
+      return false;
+    }
+
+    if (hostname.startsWith('[')) {
+      const ipv6 = hostname.slice(1, -1).toLowerCase();
+      if (ipv6 === '::1') return true;
+      if (ipv6.startsWith('fc') || ipv6.startsWith('fd')) return true;
+      if (ipv6.startsWith('fe80')) return true;
+      if (ipv6.startsWith('fe') || ipv6.startsWith('ff')) return true;
+    }
+
+    if (hostname.startsWith('::') || hostname.includes('::ffff:')) {
+      return true;
+    }
+
+    return false;
+  }
+
   private validateAndNormalizeUrl(actualUrlStr: string, siteCookie: string | null): URL | RedirectResult {
     try {
       let testUrl = actualUrlStr;
@@ -164,6 +215,10 @@ export class ProxyHandler {
       const urlObj = new URL(testUrl);
       if (!urlObj.host.includes('.')) {
         throw new Error('Invalid host');
+      }
+
+      if (this.isPrivateIP(urlObj.hostname)) {
+        throw new Error('Private IP addresses are not allowed');
       }
     } catch {
       if (siteCookie) {
