@@ -832,18 +832,18 @@ export function getMainPageTemplate(): string {
         <button type="submit" class="btn">开始代理访问</button>
       </form>
 
-      <div class="stats-bar" id="statsBar">
-        <div class="stat-item">
-          <div class="stat-value" id="statTotalKeys">—</div>
-          <div class="stat-label">缓存条目数</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value" id="statHitRate">—</div>
-          <div class="stat-label">缓存命中率</div>
-        </div>
+      <div class="stats-bar">
         <div class="stat-item">
           <div class="stat-value">全球</div>
           <div class="stat-label">CDN 节点覆盖</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">边缘</div>
+          <div class="stat-label">计算架构</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">HTTPS</div>
+          <div class="stat-label">安全传输</div>
         </div>
       </div>
 
@@ -856,8 +856,8 @@ export function getMainPageTemplate(): string {
 
         <div class="feature-item">
           <span class="feature-icon">⚡</span>
-          <div class="feature-title">智能缓存</div>
-          <div class="feature-desc">支持 KV 缓存加速，提升访问速度和用户体验</div>
+          <div class="feature-title">边缘计算</div>
+          <div class="feature-desc">基于 Cloudflare 全球网络，实现低延迟访问</div>
         </div>
 
         <div class="feature-item">
@@ -944,22 +944,6 @@ export function getMainPageTemplate(): string {
     const style = document.createElement('style');
     style.textContent = '@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
     document.head.appendChild(style);
-
-    // 动态拉取缓存统计数据，替换假数据
-    async function loadCacheStats() {
-      try {
-        const res = await fetch('/api/cache/stats');
-        if (!res.ok) return;
-        const data = await res.json();
-        const totalKeysEl = document.getElementById('statTotalKeys');
-        const hitRateEl = document.getElementById('statHitRate');
-        if (totalKeysEl) totalKeysEl.textContent = data.error ? '—' : String(data.totalKeys ?? '—');
-        if (hitRateEl) hitRateEl.textContent = data.error ? '—' : (data.hitRate ?? '—');
-      } catch (_) {
-        // 接口不可用时保持 "—" 占位，不影响页面功能
-      }
-    }
-    document.addEventListener('DOMContentLoaded', loadCacheStats);
   </script>
 </body>
 </html>
